@@ -30,7 +30,7 @@ void IioAdaptorPlugin::Register(class Loader&)
 {
     sensordLogD() << "registering iioadaptor";
     SensorManager& sm = SensorManager::instance();
-    sm.registerDeviceAdaptor<IioAdaptor>("iioadaptor");
+    sm.registerDeviceAdaptor<IioAdaptor>("accelerometeradaptor");
 }
 
 Q_EXPORT_PLUGIN2(iioadaptor, IioAdaptorPlugin)

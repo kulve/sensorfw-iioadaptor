@@ -55,7 +55,7 @@ struct iio_device {
 };
 
 /**
- * @brief Adaptor for Industria I/O.
+ * @brief Adaptor for Industrial I/O.
  *
  * Adaptor for Industrial I/O. Uses SysFs driver interface in
  * polling mode, i.e. values are read with given constant interval.
@@ -93,6 +93,7 @@ protected:
      */
     ~IioAdaptor();
 
+
     bool setInterval(const unsigned int value, const int sessionId);
     unsigned int interval() const;
 
@@ -117,6 +118,7 @@ private:
 	int sysfsReadInt(QString filename);
 	int scanElementsEnable(int device, int enable);
 	int deviceChannelParseBytes(QString filename);
+    int addDevice(int device);
 
 	// Device number for the sensor (-1 if not found)
     int dev_accl_;
