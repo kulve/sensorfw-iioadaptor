@@ -5,6 +5,7 @@
    <p>
    Copyright (C) 2009-2010 Nokia Corporation
    Copyright (C) 2012 Tuomas Kulve
+   Copyright (C) 2012 Srdjan Markovic
 
    @author Tuomas Kulve <tuomas@kulve.fi>
 
@@ -78,10 +79,6 @@ IioAdaptor::IioAdaptor(const QString& id) :
     }
     
     //introduceAvailableDataRange(DataRange(0, 65535, 1));
-
-    setAdaptedSensor("accelerometer", "IIO Accelerometer", iioAcclBuffer_);
-    setDescription("Sysfs Industrial I/O sensor adaptor");
-
 }
 
 
@@ -110,6 +107,7 @@ int IioAdaptor::addDevice(int device) {
     QFileInfoList list = dir.entryInfoList();
     for (int i = 0; i < list.size(); ++i) {
         QFileInfo fileInfo = list.at(i);
+	sensordLogT() << "adding device " << fileInfo.filePath() << " as channel" << device*IIO_MAX_DEVICE_CHANNELS+i;
         addPath(fileInfo.filePath(),device*IIO_MAX_DEVICE_CHANNELS+i);
     }
     
@@ -289,10 +287,9 @@ void IioAdaptor::processSample(int fileId, int fd)
 {
     char buf[256];
     int readBytes;
-    int buf_i = 0;
+    int result;
     int channel = fileId%IIO_MAX_DEVICE_CHANNELS;
     int device = (fileId-channel)/IIO_MAX_DEVICE_CHANNELS;
-    int values[devices_[device].channels];
 
     readBytes = read(fd, buf, sizeof(buf));
 
@@ -300,57 +297,30 @@ void IioAdaptor::processSample(int fileId, int fd)
         sensordLogW() << "read():" << strerror(errno);
         return;
     }
-    sensordLogT() << "Read " << readBytes << " bytes";
-
-
-    while (buf_i < readBytes) {
-
-        int bytes = devices_[device].channel_bytes[channel];
-
-        switch(bytes) {
-        case 1:
-            values[channel] = buf[buf_i];
-            break;
-        case 2:
-            values[channel] = (buf[buf_i] << 8) | (buf[buf_i] << 0);
-            break;
-        case 4:
-            values[channel] = (buf[buf_i] << 24) | (buf[buf_i] << 16) | (buf[buf_i] << 8) | (buf[buf_i] << 0);
-            break;
-#if 0
-            // Needs 64bit
-        case 8:
-            values[channel] =
-                (buf[buf_i] << 56) | (buf[buf_i] << 48) | (buf[buf_i] << 40) | (buf[buf_i] << 32) |
-                (buf[buf_i] << 24) | (buf[buf_i] << 16) | (buf[buf_i] << 8)  | (buf[buf_i] << 0);
-            break;
-#endif
-        }
-
-        buf_i += bytes;
-        channel++;
-    }
+    result=atoi(buf);
+    sensordLogT() << "Read " << result << " from device " << device << ", channel " << channel;
 
     // FIXME: shouldn't hardcode
+    // FIXME: Find a mapping between channels and actual devices (0, 1 and 2 are probably wrong)
     if (device == 0) {
         TimedXyzData* accl = iioAcclBuffer_->nextSlot();
-        accl->x_ = values[7];
-        accl->y_ = values[8];
-        accl->z_ = values[9];
+        switch(channel){
+	  case 0:
+	    accl->x_=result;
+	    break;
+	    
+	  case 1:
+            accl->y_ = result;
+	    break;
+	    
+	  case 2:
+            accl->z_ = result;
+	    break;
+	    
+	  default:
+	    return;
+	}
         iioAcclBuffer_->wakeUpReaders();
-
-        TimedXyzData* gyro = iioGyroBuffer_->nextSlot();
-        gyro->x_ = values[4];
-        gyro->y_ = values[5];
-        gyro->z_ = values[6];
-        iioGyroBuffer_->wakeUpReaders();
-    }
-    if (device == 1) {
-        TimedXyzData* magn = iioMagnBuffer_->nextSlot();
-        magn->x_ = values[0];
-        magn->y_ = values[1];
-        magn->z_ = values[2];
-        iioMagnBuffer_->wakeUpReaders();
     }
 }
 
